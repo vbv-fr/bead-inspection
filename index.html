@@ -797,9 +797,10 @@ function App(){
                   </>}
                   <span className="gt-u">px</span>
                 </div>
+                <p className="note">If any caliper doesn't meet the bead width criterion, the result is <b>NG</b>.</p>
 
-                <label className="lbl" style={{marginTop:20}}>Bead Position Range (Caliper Width)</label>
-                <div className="gt-line">
+                <div className="gt-line" style={{marginTop:20}}>
+                  <label className="gt-name" style={{flex:1}}>Bead Position Range (Caliper Width)</label>
                   <input className="num-inline" type="number" min={1} max={120} value={calWindow}
                     onChange={e=>{const v=parseInt(e.target.value); setCalWindow(isNaN(v)?1:Math.max(1,v));}}/>
                   <span className="gt-u">px</span>
