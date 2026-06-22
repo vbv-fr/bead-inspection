@@ -716,7 +716,7 @@ function App(){
                   <span className={"stepnum "+dotsState}>{dotsFinished?"✓":"1"}</span>
                   <h3 style={{margin:0}}>Trace Dots</h3>
                 </div>
-                <p className="sub">Drop ordered points along the red bead to define the inspection path.
+                <p className="sub">Drop ordered points along the bead streak.
                   In tracing mode: click to add a dot, hover a dot to remove it, then Finish.</p>
 
                 {!dotMode && !dotsFinished &&
@@ -786,7 +786,7 @@ function App(){
               <div className={"block "+(calipersAdded?"":"locked")}>
                 <h3>Ground Truth Values</h3>
 
-                <label className="lbl">Width</label>
+                <label className="lbl">Bead Width</label>
                 <div className="gt-row">
                   <select className="gt-op" value={gtOp} onChange={e=>setGtOp(e.target.value)}>
                     <option value="lt">&lt;</option>
@@ -803,7 +803,7 @@ function App(){
                   <span className="gt-u">px</span>
                 </div>
 
-                <label className="lbl" style={{marginTop:18}}>Minimum Gap (in calipers)</label>
+                <label className="lbl" style={{marginTop:18}}>Minimum Bead Gap (in calipers)</label>
                 <input className="num-inline" type="number" min={1} max={20} value={minGap}
                   onChange={e=>{const v=parseInt(e.target.value); setMinGap(isNaN(v)?1:Math.max(1,v));}}/>
                 <p className="note">A gap equal to or greater than this value will lead to an <b>NG</b>.
