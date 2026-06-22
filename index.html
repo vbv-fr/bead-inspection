@@ -716,6 +716,11 @@ function App(){
                 <div className="stephdr">
                   <span className={"stepnum "+dotsState}>{dotsFinished?"✓":"1"}</span>
                   <h3 style={{margin:0}}>Trace Dots</h3>
+                  {dotMode &&
+                    <div style={{marginLeft:"auto",display:"flex",gap:8}}>
+                      <button className="btn small" onClick={undo} disabled={!canUndo}>↶ Undo</button>
+                      <button className="btn small" onClick={reset} disabled={!points.length}>↺ Reset</button>
+                    </div>}
                   {dotsFinished && !dotMode &&
                     <button className="btn small" style={{marginLeft:"auto"}}
                       onClick={()=>setDotMode(true)}>✎ Edit Dots</button>}
@@ -726,15 +731,9 @@ function App(){
                 {!dotMode && !dotsFinished &&
                   <button className="btn cta" onClick={()=>{setDotMode(true);}}>＋ Add Dots</button>}
 
-                {dotMode && <div className="dotctl">
-                  <div className="dotctl-row">
-                    <span className="pill"><b>{points.length}</b> dot{points.length!==1?"s":""}</span>
-                    <button className="btn small" style={{marginLeft:"auto"}} onClick={undo} disabled={!canUndo}>↶ Undo</button>
-                    <button className="btn small" onClick={reset} disabled={!points.length}>↺ Reset</button>
-                  </div>
+                {dotMode &&
                   <button className="btn finish" disabled={!hasPoints}
-                    onClick={()=>{setDotMode(false); setDotsFinished(true); setHoverDot(null);}}>✓ Finish</button>
-                </div>}
+                    onClick={()=>{setDotMode(false); setDotsFinished(true); setHoverDot(null);}}>✓ Finish</button>}
               </div>
 
               {/* --- Calipers & Boxes --- */}
@@ -747,7 +746,7 @@ function App(){
                   Tune the numbers, then View Changes to preview on the canvas.</p>
 
                 {!calipersAdded &&
-                  <button className="btn cta" disabled={!hasPoints} onClick={addCalipers}>＋ Add Caliper</button>}
+                  <button className="btn cta" disabled={!hasPoints} onClick={addCalipers}>＋ Add Calipers and Boxes</button>}
 
                 {calipersAdded && <>
                   <div className="grid2">
@@ -766,15 +765,6 @@ function App(){
                   <button className="btn outline small" style={{width:"100%",marginTop:12}}
                     onClick={viewChanges} disabled={!dirty}>↻ View Changes</button>
                 </>}
-              </div>
-
-              {/* --- Datum alignment --- */}
-              <div className={"block "+(calipersAdded?"":"locked")}>
-                <div className="toggle-row" style={{margin:0}}>
-                  <div className="t-lbl"><b>Align with Datum Line</b></div>
-                  <Switch checked={alignDatum} onChange={setAlignDatum}/>
-                </div>
-                <p className="note" style={{marginTop:8}}>This will align the Bead Streak with the Datum setup in OTC module.</p>
               </div>
 
               {/* --- Ground Truth Values --- */}
@@ -797,7 +787,7 @@ function App(){
                   </>}
                   <span className="gt-u">px</span>
                 </div>
-                <p className="note">If any caliper doesn't meet the bead width criterion, the result is <b>NG</b>.</p>
+                <p className="note">If a caliper doesn't meet the bead width criterion, the result is <b>NG</b>.</p>
 
                 <div className="gt-line" style={{marginTop:20}}>
                   <label className="gt-name" style={{flex:1}}>Bead Position Range (Caliper Width)</label>
@@ -814,6 +804,15 @@ function App(){
                 </div>
                 <p className="note">A gap equal to or greater than this value will lead to an <b>NG</b>.
                   The caliper height is one unit of caliper.</p>
+              </div>
+
+              {/* --- Datum alignment --- */}
+              <div className={"block "+(calipersAdded?"":"locked")}>
+                <div className="toggle-row" style={{margin:0}}>
+                  <div className="t-lbl"><b>Align with Datum Line</b></div>
+                  <Switch checked={alignDatum} onChange={setAlignDatum}/>
+                </div>
+                <p className="note" style={{marginTop:8}}>This will align the Bead Streak with the Datum setup in OTC module.</p>
               </div>
 
               {/* --- Display layers --- */}
