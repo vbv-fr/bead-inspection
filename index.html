@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bead Inspection — Module Configuration</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  :root{
+    --bg:#ffffff; --canvas-bg:#eef0f3;
+    --ink:#1d1d1f; --muted:#6b7178; --faint:#9aa0a7;
+    --line:#e7e9ed; --rule:#cfd3d9; --field:#f4f5f7; --field-line:#d9dde2;
+    --primary:#e8542b; --primary-d:#cc451f;
+    --green:#7ed957; --green-d:#56b733;
+    --sky:#2f6fed; --amber:#e0a23a; --end:#8b5cf6; --bad:#e0473a;
+    --head:#e9eaec;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:14px; -webkit-font-smoothing:antialiased;
+  }
+  #root{height:100vh}
+  .app{display:flex;flex-direction:column;height:100vh;min-width:1180px}
+
+  /* ---------- top breadcrumb bar ---------- */
+  .crumbbar{display:flex;align-items:center;gap:11px;padding:15px 24px;border-bottom:1px solid var(--line);font-size:14px;color:var(--muted)}
+  .crumbbar .home{font-size:16px}
+  .crumbbar .sep{color:var(--faint)}
+  .crumbbar .cur{color:var(--ink);font-weight:700}
+
+  .main{display:flex;flex:1;min-height:0}
+
+  /* ---------- canvas ---------- */
+  .canvas-wrap{
+    flex:1;min-width:420px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:24px;overflow:auto;background:var(--canvas-bg);position:relative;
+  }
+  .frame{position:relative;border:3px solid var(--primary);border-radius:4px;line-height:0;box-shadow:0 10px 34px rgba(20,30,50,.16)}
+  .frame .imglabel{position:absolute;top:6px;left:8px;color:var(--primary);font-weight:800;font-size:18px;letter-spacing:-.3px;text-shadow:0 1px 2px rgba(255,255,255,.6)}
+  canvas{display:block;background:#cfcfcf;border-radius:1px;cursor:crosshair}
+  canvas.dotmode{cursor:copy}
+  canvas.pickmode{cursor:pointer}
+
+  /* tracing tag on canvas */
+  .tracing-tag{position:absolute;top:8px;right:8px;background:rgba(232,84,43,.92);color:#fff;font-weight:700;font-size:11.5px;padding:6px 11px;border-radius:8px;line-height:1}
+
+  /* in-pane dot controls */
+  .dotctl{margin-top:4px}
+  .dotctl-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .btn.finish{background:var(--green-d);border-color:var(--green-d);color:#fff;width:100%;justify-content:center;display:flex;padding:12px;font-size:14px}
+  .btn.finish:hover{background:#4aa02b;border-color:#4aa02b}
+  .btn.finish:disabled{background:#bfe3aa;border-color:#bfe3aa;color:#fff;opacity:1}
+  .dotsw{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:8px;vertical-align:middle}
+  .canvas-foot{display:flex;gap:18px;margin-top:14px;color:var(--muted);font-size:12px}
+  .canvas-foot b{color:var(--ink);font-variant-numeric:tabular-nums}
+
+  /* ---------- module flow column ---------- */
+  .flow{width:236px;min-width:236px;background:#f7f8fa;border-left:1px solid var(--line);overflow-y:auto;padding:22px 16px}
+  .fcard{background:#fff;border:1px solid var(--line);border-radius:13px;padding:14px;box-shadow:0 4px 14px rgba(20,30,50,.06);position:relative}
+  .fcard.master .ftitle{color:var(--faint);font-size:11.5px;font-weight:600;margin-bottom:6px}
+  .fcard.master .ffile{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fcard.master .trash{position:absolute;top:12px;right:12px;color:var(--faint);cursor:pointer}
+  .fcard.sel{background:#f0f1f3;border:1px solid var(--field-line);box-shadow:none}
+  .fhead{display:flex;align-items:center;gap:9px}
+  .fname{font-weight:700;font-size:14px}
+  .fstatus{font-size:12px;font-weight:600;margin-top:8px;color:var(--green-d)}
+  .fstatus.todo{color:var(--faint)}
+  .farrow{display:flex;justify-content:center;color:var(--primary);font-size:22px;margin:5px 0;font-weight:700}
+  .fplus{display:flex;justify-content:flex-end;margin:5px 6px}
+  .fplus span{color:var(--primary);font-size:22px;font-weight:700;cursor:pointer;line-height:1}
+
+  .modic{width:26px;height:26px;border-radius:50%;background:var(--primary);display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .modic svg{width:15px;height:15px}
+
+  /* ---------- right config pane ---------- */
+  .pane{width:404px;min-width:404px;background:#fff;border-left:1px solid var(--line);display:flex;flex-direction:column}
+  .pane-head{display:flex;align-items:center;gap:11px;background:var(--head);padding:15px 18px;border-bottom:1px solid #dcdee2}
+  .pane-head h2{flex:1;font-size:17px;font-weight:700;margin:0;letter-spacing:-.2px}
+  .pane-head .x{cursor:pointer;color:#6b7178;font-size:20px;line-height:1}
+  .tabs{display:flex;align-items:center;gap:9px;padding:14px 18px;border-bottom:1px solid var(--line);font-size:13.5px}
+  .tab{color:var(--faint);font-weight:600;white-space:nowrap}
+  .tab.active{color:var(--ink);font-weight:800}
+  .tab .sep{color:var(--faint)}
+  .pane-body{flex:1;overflow-y:auto;padding:20px 18px}
+  .pane-foot{border-top:1px solid var(--line);padding:14px 18px;display:flex;gap:10px;justify-content:flex-end}
+
+  .block + .block{margin-top:22px;padding-top:20px;border-top:1px solid var(--line)}
+  .block h3{font-size:15px;font-weight:700;margin:0 0 4px}
+  .block .sub{color:var(--muted);font-size:12.5px;line-height:1.5;margin:0 0 14px}
+  .stephdr{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  .stepnum{width:20px;height:20px;border-radius:50%;background:var(--field);border:1px solid var(--field-line);color:var(--muted);font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .stepnum.done{background:var(--green-d);border-color:var(--green-d);color:#fff}
+  .stepnum.active{background:var(--primary);border-color:var(--primary);color:#fff}
+  .block.locked{opacity:.45;pointer-events:none}
+
+  label.lbl{display:block;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px}
+
+  select,input[type=text]{
+    width:100%;background:#fff;border:1px solid var(--field-line);color:var(--ink);
+    padding:11px 12px;border-radius:9px;font-size:14px;appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7178' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 12px center;
+  }
+  input[type=text]{background-image:none}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .fld{display:flex;flex-direction:column;gap:7px}
+  .fld span{font-size:12px;color:var(--muted);font-weight:600}
+  .fld input[type=number]{
+    width:100%;background:var(--field);border:1px solid var(--field-line);color:var(--ink);
+    padding:9px 10px;border-radius:8px;font-size:14px;text-align:left;font-variant-numeric:tabular-nums;
+  }
+  .fld .with{position:relative}
+  .fld .with input{padding-right:34px}
+  .fld .with .u{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--faint);font-size:11px}
+
+  .toggle-row{display:flex;align-items:center;gap:12px;margin:14px 0}
+  .toggle-row .t-lbl{flex:1}
+  .toggle-row .t-lbl b{font-weight:600}
+  .toggle-row .t-lbl small{display:block;color:var(--faint);font-size:11.5px;margin-top:2px}
+  .switch{position:relative;width:42px;height:24px;flex:0 0 auto}
+  .switch input{opacity:0;width:0;height:0;position:absolute}
+  .switch .track{position:absolute;inset:0;background:#cfd3d9;border-radius:999px;transition:.15s;cursor:pointer}
+  .switch .track:before{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+  .switch input:checked + .track{background:var(--green-d)}
+  .switch input:checked + .track:before{transform:translateX(18px)}
+
+  .pills{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 4px}
+  .pill{display:inline-flex;align-items:center;gap:6px;background:var(--field);border:1px solid var(--field-line);
+    color:var(--muted);font-size:12px;font-weight:600;padding:6px 11px;border-radius:8px}
+  .pill b{color:var(--ink)}
+  .note{color:var(--faint);font-size:12px;line-height:1.5;margin-top:10px}
+  .dirty{color:var(--primary);font-size:12px;font-weight:600;margin:10px 0 0;display:flex;align-items:center;gap:6px}
+  .hdr-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .num-inline{width:96px;background:var(--field);border:1px solid var(--field-line);color:var(--ink);padding:9px 10px;border-radius:8px;font-size:14px;text-align:left;font-variant-numeric:tabular-nums}
+  .gt-row{display:flex;align-items:center;gap:8px;margin-top:4px}
+  .gt-row .gt-op{width:120px;flex:0 0 auto}
+  .gt-row .num-inline{flex:1;width:auto}
+  .gt-and{color:var(--muted);font-size:13px;flex:0 0 auto}
+  .gt-u{color:var(--faint);font-size:12px;flex:0 0 auto}
+  .nest{margin:2px 0 4px 12px;padding-left:12px;border-left:2px solid #e7d8fb}
+  .edge-ctl{margin:2px 0 14px;padding:12px;border:1px dashed #c9b6f0;border-radius:10px;background:#f7f4fe}
+  .edge-ctl .hint{font-size:12px;line-height:1.55;color:var(--muted);margin-bottom:10px}
+  .edge-ctl .pills{margin:0}
+
+  /* buttons */
+  .btn{background:#fff;color:var(--ink);border:1px solid var(--field-line);padding:10px 16px;border-radius:9px;cursor:pointer;font-size:13.5px;font-weight:700}
+  .btn:hover{border-color:var(--muted)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn.cta{background:var(--primary);border-color:var(--primary);color:#fff;width:100%;justify-content:center;display:flex;align-items:center;gap:8px;padding:13px;font-size:14px}
+  .btn.cta:hover{background:var(--primary-d);border-color:var(--primary-d)}
+  .btn.cta:disabled{background:#f0c9bd;border-color:#f0c9bd;color:#fff;opacity:1}
+  .btn.outline{background:#fff;color:var(--primary);border:1px solid var(--primary);min-width:96px;justify-content:center;display:flex}
+  .btn.outline:hover{background:#fff5f1}
+  .btn.solid{background:var(--primary);border-color:var(--primary);color:#fff;min-width:96px;justify-content:center;display:flex}
+  .btn.solid:hover{background:var(--primary-d)}
+  .btn.small{padding:8px 13px;font-size:12.5px}
+
+  .checkrow{display:flex;align-items:flex-start;gap:11px;padding:12px 0}
+  .checkrow input{width:20px;height:20px;accent-color:var(--green-d);margin-top:1px;flex:0 0 auto}
+  .checkrow .cmain{font-weight:700}
+  .checkrow .csub{color:var(--faint);font-size:12px;margin-top:2px}
+
+  /* bottom app bar */
+  .appbar{display:flex;align-items:center;justify-content:center;gap:18px;padding:10px 22px;border-top:1px solid var(--line);background:#fff;position:relative}
+  .appbar .xbtn{position:absolute;left:18px;width:34px;height:34px;border-radius:8px;border:1px solid var(--field-line);background:#fff;color:var(--primary);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px}
+  .pager{display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:999px;padding:8px 18px;font-size:13px;color:var(--muted)}
+  .pdots{display:flex;gap:7px}
+  .pdot{width:8px;height:8px;border-radius:50%;background:#d9dde2}
+  .pdot.on{background:var(--primary)}
+  .pager b{color:var(--ink)}
+  .barix{position:absolute;right:18px;display:flex;gap:16px;color:var(--faint)}
+
+  pre{background:#0f1115;border-radius:10px;padding:12px;max-height:260px;overflow:auto;font-size:11.5px;color:#cbe6ff;white-space:pre;margin:12px 0 0}
+
+  .toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:var(--green-d);color:#fff;font-weight:700;padding:12px 20px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:50}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/jsx-source" id="app-source">
+const {useState, useRef, useEffect, useMemo, useCallback} = React;
+
+/* ============================ Geometry helpers ============================ */
+function buildPath(points){
+  const pts = points.slice();
+  const segs = []; let total = 0;
+  for(let i=0;i<pts.length-1;i++){
+    const a = pts[i], b = pts[i+1];
+    const len = Math.hypot(b.x-a.x, b.y-a.y);
+    segs.push({a,b,len,start:total});
+    total += len;
+  }
+  return {segs,total,pts};
+}
+function sampleAt(path, s){
+  if(path.segs.length===0) return null;
+  s = Math.max(0, Math.min(path.total, s));
+  for(let i=0;i<path.segs.length;i++){
+    const seg = path.segs[i];
+    if(s <= seg.start+seg.len || i===path.segs.length-1){
+      const u = seg.len ? (s-seg.start)/seg.len : 0;
+      return {
+        x: seg.a.x + (seg.b.x-seg.a.x)*u,
+        y: seg.a.y + (seg.b.y-seg.a.y)*u,
+        ang: Math.atan2(seg.b.y-seg.a.y, seg.b.x-seg.a.x)
+      };
+    }
+  }
+  return null;
+}
+function offsetPolyline(pts, dist){
+  const out = [];
+  for(let i=0;i<pts.length;i++){
+    let nx=0, ny=0;
+    if(i>0){const dx=pts[i].x-pts[i-1].x, dy=pts[i].y-pts[i-1].y; const l=Math.hypot(dx,dy)||1; nx+=-dy/l; ny+=dx/l;}
+    if(i<pts.length-1){const dx=pts[i+1].x-pts[i].x, dy=pts[i+1].y-pts[i].y; const l=Math.hypot(dx,dy)||1; nx+=-dy/l; ny+=dx/l;}
+    const l=Math.hypot(nx,ny)||1; nx/=l; ny/=l;
+    out.push({x:pts[i].x+nx*dist, y:pts[i].y+ny*dist});
+  }
+  return out;
+}
+
+/* ============================ Caliper computation ============================ */
+// Distribute `n` calipers evenly by arc-length, perpendicular to the local tangent.
+// Calipers whose index is in `edgeSet` are typed "edge": presence-only (no width,
+// no continuity). Normal "mid" calipers are presence + width-containment.
+function computeCalipers(points, n, height, width, edgeSet){
+  if(points.length < 2 || n < 1) return [];
+  const path = buildPath(points);
+  if(path.total === 0) return [];
+  const cals = [];
+  for(let i=0;i<n;i++){
+    const t = n===1 ? 0.5 : i/(n-1);
+    const sp = sampleAt(path, t*path.total);
+    if(!sp) continue;
+    const type = edgeSet.includes(i) ? "edge" : "mid";
+    cals.push({
+      id: "C"+String(i+1).padStart(2,"0"),
+      index: i,
+      position: +t.toFixed(4),
+      center: {x:+sp.x.toFixed(2), y:+sp.y.toFixed(2)},
+      orientation: +(sp.ang).toFixed(4),
+      orientationDeg: +(sp.ang*180/Math.PI).toFixed(1),
+      height, width,
+      presenceChecked: true,            // every caliper is presence-checked
+      widthChecked: type!=="edge",      // edge calipers skip width (presence-only)
+      type
+    });
+  }
+  return cals;
+}
+
+/* ============================ Segmentation boxes ============================ */
+function computeBoxes(points, n, caliperHeight, overlapAllowed){
+  if(points.length < 2 || n < 1) return [];
+  const path = buildPath(points);
+  if(path.total === 0) return [];
+  const pad = caliperHeight/2 + 6;
+  const boxes = [];
+  const overlap = overlapAllowed ? 0.18 : 0;
+  for(let i=0;i<n;i++){
+    let s0 = (i/n)*path.total;
+    let s1 = ((i+1)/n)*path.total;
+    const span = s1 - s0;
+    s0 = Math.max(0, s0 - span*overlap);
+    s1 = Math.min(path.total, s1 + span*overlap);
+    let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
+    const steps = 24;
+    for(let k=0;k<=steps;k++){
+      const sp = sampleAt(path, s0 + (s1-s0)*k/steps);
+      if(!sp) continue;
+      minx=Math.min(minx,sp.x); maxx=Math.max(maxx,sp.x);
+      miny=Math.min(miny,sp.y); maxy=Math.max(maxy,sp.y);
+    }
+    boxes.push({
+      id: "B"+String(i+1).padStart(2,"0"),
+      index: i,
+      bounds: {
+        x:+(minx-pad).toFixed(1), y:+(miny-pad).toFixed(1),
+        w:+((maxx-minx)+pad*2).toFixed(1), h:+((maxy-miny)+pad*2).toFixed(1)
+      },
+      arcRange: [+(s0/path.total).toFixed(3), +(s1/path.total).toFixed(3)]
+    });
+  }
+  return boxes;
+}
+
+/* ============================ Synthetic master image ============================ */
+const STREAK = [
+  {x:150,y:90},{x:150,y:160},{x:154,y:240},{x:168,y:315},
+  {x:205,y:372},{x:268,y:408},{x:350,y:424},{x:440,y:426},
+  {x:520,y:422},{x:590,y:414}
+];
+function drawScene(ctx){
+  ctx.fillStyle="#b9bdc4"; ctx.fillRect(0,0,W,H);
+  // faux metal panel
+  const g=ctx.createLinearGradient(0,0,W,H);
+  g.addColorStop(0,"#c9ccd2"); g.addColorStop(.5,"#aeb2b9"); g.addColorStop(1,"#c4c7cd");
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle="rgba(255,255,255,.06)";
+  for(let gx=0;gx<W;gx+=44) ctx.fillRect(gx,0,1,H);
+  for(let gy=0;gy<H;gy+=44) ctx.fillRect(0,gy,W,1);
+  // scattered "rivet" holes for texture
+  const holes=[[300,120],[470,140],[250,200],[520,250],[330,300],[600,330],[230,420],[560,470],[420,200],[150,470]];
+  ctx.fillStyle="rgba(40,46,54,.5)";
+  holes.forEach(([x,y])=>{ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.fill();});
+  // red sealant bead
+  ctx.save();
+  ctx.lineJoin="round"; ctx.lineCap="round";
+  ctx.strokeStyle="#c81e1e"; ctx.lineWidth=12;
+  ctx.beginPath(); ctx.moveTo(STREAK[0].x, STREAK[0].y);
+  for(let i=1;i<STREAK.length;i++){
+    const xc=(STREAK[i-1].x+STREAK[i].x)/2, yc=(STREAK[i-1].y+STREAK[i].y)/2;
+    ctx.quadraticCurveTo(STREAK[i-1].x, STREAK[i-1].y, xc, yc);
+  }
+  ctx.lineTo(STREAK[STREAK.length-1].x, STREAK[STREAK.length-1].y);
+  ctx.stroke();
+  ctx.strokeStyle="rgba(255,150,150,.45)"; ctx.lineWidth=3.5; ctx.stroke();
+  ctx.restore();
+}
+
+const W=680, H=520;
+const BOX_SIZES = [128, 256, 512, 768, 1024];
+// Number of segmentation boxes derived from how many box-size tiles span the path.
+function boxCount(pathTotal, boxSize){ return Math.max(1, Math.ceil(pathTotal / boxSize)); }
+
+/* ============================ Icons ============================ */
+function ModIcon(){
+  return (
+    <span className="modic">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 7h6M4 7l2-2M4 7l2 2"/><path d="M20 17h-6M20 17l-2-2M20 17l-2 2"/>
+        <path d="M17 4v6M17 4l-2 2M17 4l2 2"/><path d="M7 20v-6M7 20l-2-2M7 20l2-2"/>
+      </svg>
+    </span>
+  );
+}
+
+/* ============================ Small UI bits ============================ */
+function Switch({checked,onChange}){
+  return (
+    <label className="switch">
+      <input type="checkbox" checked={checked} onChange={e=>onChange(e.target.checked)}/>
+      <span className="track"></span>
+    </label>
+  );
+}
+function NumFld({label, value, set, min, max, step, unit}){
+  return (
+    <div className="fld">
+      <span>{label}</span>
+      <div className="with">
+        <input type="number" min={min} max={max} step={step||1} value={value}
+          onChange={e=>{const v=parseFloat(e.target.value); set(isNaN(v)?min:v);}}/>
+        {unit && <span className="u">{unit}</span>}
+      </div>
+    </div>
+  );
+}
+
+/* ============================ Main App ============================ */
+function App(){
+  const canvasRef = useRef(null);
+  const wrapRef = useRef(null);
+
+  // ---- wizard step ----
+  const [step,setStep] = useState("inputs"); // inputs | setup | outputs
+
+  // ---- Module Inputs ----
+  const [baseArea,setBaseArea] = useState("Input Image");
+  const [beadClass,setBeadClass] = useState("Bead Class 1");
+  const [beadModel,setBeadModel] = useState("Bead Model 1");
+
+  // ---- Datum alignment ----
+  const [alignDatum,setAlignDatum] = useState(false);
+
+  // ---- Dots (history) ----
+  const [hist,setHist] = useState({stack:[[]], idx:0});
+  const points = hist.stack[hist.idx];
+  const commit = useCallback((pts)=>{
+    setHist(h=>{const stack=h.stack.slice(0,h.idx+1); stack.push(pts); return {stack,idx:stack.length-1};});
+  },[]);
+  const undo = ()=> setHist(h=>({stack:h.stack, idx:Math.max(0,h.idx-1)}));
+  const canUndo = hist.idx>0;
+  const reset = ()=> commit([]);
+
+  const [dotMode,setDotMode] = useState(false);
+  const [dotsFinished,setDotsFinished] = useState(false);
+  const [hoverDot,setHoverDot] = useState(null);
+
+  // ---- Calipers / boxes (caliper height + box size are deferred via View Changes) ----
+  const CAL_STEP = 20; // along-path caliper width (px) — fixes tiling density
+  const [calipersAdded,setCalipersAdded] = useState(false);
+  const [applied,setApplied] = useState({boxSize:512, calH:80});
+  const [draft,setDraft]     = useState({boxSize:512, calH:80});
+  const [overlap,setOverlap] = useState(false);
+  const dirty = JSON.stringify(applied)!==JSON.stringify(draft);
+
+  // ---- Caliper width window (acceptance window; applied live) ----
+  // The bead must sit fully inside this width window, else NG. Drives the green band.
+  const [calWindow,setCalWindow] = useState(16);
+
+  // ---- Edge calipers (plumbing retained; no UI ⇒ always inactive) ----
+  const [excludeEdges,setExcludeEdges] = useState(false);
+  const [defineEdges,setDefineEdges] = useState(false);
+  const [edgeIdx,setEdgeIdx] = useState([0]);
+  const [hoverCal,setHoverCal] = useState(null);
+
+  // ---- Ground Truth Values ----
+  const [gtOp,setGtOp]   = useState("lt");  // "lt" | "gt" | "between"
+  const [gtVal,setGtVal] = useState(16);     // single value, or low bound for "between"
+  const [gtHi,setGtHi]   = useState(21);     // high bound for "between"
+  const [minGap,setMinGap] = useState(3);    // minimum gap in calipers
+
+  // ---- Display layers ----
+  const [showCalipers,setShowCalipers] = useState(true);
+  const [showBoxes,setShowBoxes] = useState(true);
+  const [showBand,setShowBand] = useState(true);
+
+  // ---- Outputs ----
+  const [outResult,setOutResult] = useState(true);
+  const [outIncorrect,setOutIncorrect] = useState(true);
+  const [toast,setToast] = useState(false);
+
+  const hasPoints = points.length >= 2;
+  const pathInfo = useMemo(()=>buildPath(points),[points]);
+  const numBoxes = boxCount(pathInfo.total, applied.boxSize); // derived from path length ÷ box size
+  // Calipers auto-tile the whole streak (one per CAL_STEP of arc length).
+  const totalCal = Math.max(numBoxes, Math.ceil(pathInfo.total / CAL_STEP));
+  const edgeSet = excludeEdges ? edgeIdx : []; // edges only exist when the analysis toggle is on
+  const pickActive = excludeEdges && defineEdges;
+
+  const calipers = useMemo(
+    ()=> calipersAdded ? computeCalipers(points, totalCal, applied.calH, CAL_STEP, edgeSet) : [],
+    [calipersAdded, points, totalCal, applied.calH, edgeSet]
+  );
+  const boxes = useMemo(
+    ()=> calipersAdded ? computeBoxes(points, numBoxes, applied.calH, overlap) : [],
+    [calipersAdded, points, numBoxes, applied.calH, overlap]
+  );
+  const edgeCount = calipers.filter(c=>c.type==="edge").length;
+
+  // Default the edge set to the two extremes whenever the caliper count changes.
+  useEffect(()=>{
+    if(!calipersAdded) return;
+    setEdgeIdx(totalCal>=2 ? [0,totalCal-1] : totalCal===1 ? [0] : []);
+  },[totalCal,calipersAdded]);
+
+  /* ---------------- Canvas interaction ---------------- */
+  function getPos(e){
+    const r = canvasRef.current.getBoundingClientRect();
+    return { x:+((e.clientX-r.left)*(W/r.width)).toFixed(1), y:+((e.clientY-r.top)*(H/r.height)).toFixed(1) };
+  }
+  function nearestPoint(x,y,rad=13){
+    let best=null, bd=rad;
+    points.forEach((p,i)=>{const d=Math.hypot(p.x-x,p.y-y); if(d<bd){bd=d;best=i;}});
+    return best;
+  }
+  function nearestCaliper(x,y,rad=24){
+    let best=null, bd=rad;
+    calipers.forEach((c)=>{const d=Math.hypot(c.center.x-x,c.center.y-y); if(d<bd){bd=d;best=c.index;}});
+    return best;
+  }
+  function onDown(e){
+    const {x,y}=getPos(e);
+    if(dotMode){
+      const pi=nearestPoint(x,y);
+      if(pi!=null){ commit(points.filter((_,i)=>i!==pi)); setHoverDot(null); return; }
+      commit([...points,{x,y}]);
+      return;
+    }
+    if(pickActive){
+      const ci=nearestCaliper(x,y);
+      if(ci!=null) setEdgeIdx(arr=> arr.includes(ci) ? arr.filter(i=>i!==ci) : [...arr,ci].sort((a,b)=>a-b));
+    }
+  }
+  function onMove(e){
+    const {x,y}=getPos(e);
+    if(dotMode){ setHoverDot(nearestPoint(x,y)); return; }
+    if(pickActive){ setHoverCal(nearestCaliper(x,y)); return; }
+    if(hoverDot!=null) setHoverDot(null);
+  }
+
+  /* keyboard undo while in dot mode */
+  useEffect(()=>{
+    function onKey(e){
+      if(!dotMode) return;
+      const meta = e.metaKey || e.ctrlKey;
+      if(meta && e.key.toLowerCase()==="z"){ e.preventDefault(); undo(); }
+    }
+    window.addEventListener("keydown",onKey);
+    return ()=>window.removeEventListener("keydown",onKey);
+  });
+
+  /* ---------------- Add calipers ---------------- */
+  // Calipers auto-tile the whole streak (count derived from path length ÷ CAL_STEP);
+  // the user controls caliper height and box size.
+  function addCalipers(){
+    const cfg = {boxSize:512, calH:80};
+    setApplied(cfg); setDraft(cfg);
+    setCalipersAdded(true);
+  }
+  function viewChanges(){ setApplied({...draft}); }
+  function setD(k,v){ setDraft(d=>({...d,[k]:v})); }
+
+  /* ---------------- Drawing ---------------- */
+  useEffect(()=>{
+    const ctx = canvasRef.current.getContext("2d");
+    ctx.clearRect(0,0,W,H);
+    drawScene(ctx);
+
+    const pts = points;
+
+    // caliper width window — solid green band the bead must sit inside
+    if(showBand && calipersAdded && pts.length>=2){
+      const half = calWindow/2;
+      const a=offsetPolyline(pts, half), b=offsetPolyline(pts,-half);
+      ctx.beginPath(); ctx.moveTo(a[0].x,a[0].y);
+      for(let i=1;i<a.length;i++) ctx.lineTo(a[i].x,a[i].y);
+      for(let i=b.length-1;i>=0;i--) ctx.lineTo(b[i].x,b[i].y);
+      ctx.closePath(); ctx.fillStyle="rgba(86,183,51,.22)"; ctx.fill();
+      const edge=(d)=>{
+        const o=offsetPolyline(pts,d);
+        ctx.save(); ctx.strokeStyle="rgba(86,183,51,.9)"; ctx.lineWidth=1.2;
+        ctx.beginPath(); ctx.moveTo(o[0].x,o[0].y);
+        for(let i=1;i<o.length;i++) ctx.lineTo(o[i].x,o[i].y);
+        ctx.stroke(); ctx.restore();
+      };
+      edge(half); edge(-half);
+    }
+
+    // segmentation boxes (red)
+    if(showBoxes) boxes.forEach((b)=>{
+      ctx.save();
+      ctx.fillStyle="rgba(224,71,58,.07)";
+      ctx.strokeStyle="rgba(224,71,58,.95)"; ctx.lineWidth=1.6; ctx.setLineDash([6,4]);
+      ctx.fillRect(b.bounds.x,b.bounds.y,b.bounds.w,b.bounds.h);
+      ctx.strokeRect(b.bounds.x,b.bounds.y,b.bounds.w,b.bounds.h);
+      ctx.setLineDash([]); ctx.fillStyle="#d23a2c"; ctx.font="bold 11px sans-serif";
+      ctx.fillText(b.id, b.bounds.x+5, b.bounds.y+14);
+      ctx.restore();
+    });
+
+    // path polyline
+    if(pts.length>=2){
+      ctx.save();
+      ctx.strokeStyle="#1d1d1f"; ctx.lineWidth=2; ctx.setLineDash([2,3]);
+      ctx.beginPath(); ctx.moveTo(pts[0].x,pts[0].y);
+      for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x,pts[i].y);
+      ctx.stroke(); ctx.restore();
+    }
+
+    // calipers — mid (blue), edge (purple, wider/taller to imply greater width tolerance)
+    if(showCalipers) calipers.forEach((c)=>{
+      const isEdge = c.type==="edge";
+      const excl = !c.widthChecked;
+      const hot = pickActive && hoverCal===c.index;
+      ctx.save();
+      ctx.translate(c.center.x,c.center.y); ctx.rotate(c.orientation);
+      const w = isEdge ? c.width*1.35 : c.width;
+      const l = isEdge ? c.height*1.18 : c.height;
+      let stroke = isEdge ? "#7c3aed" : "#2f6fed";
+      let fill   = isEdge ? "rgba(124,58,237,.16)" : "rgba(47,111,237,.14)";
+      if(excl){ fill="rgba(150,158,168,.12)"; stroke="#9aa0a7"; }
+      ctx.lineWidth=isEdge?2.3:1.7; ctx.setLineDash(excl?[3,3]:[]);
+      ctx.strokeStyle=stroke; ctx.fillStyle=fill;
+      ctx.fillRect(-w/2,-l/2,w,l); ctx.strokeRect(-w/2,-l/2,w,l);
+      ctx.setLineDash([]); ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(0,-l/2); ctx.lineTo(0,l/2); ctx.stroke();
+      if(hot){ // hover highlight while picking
+        ctx.lineWidth=2.4; ctx.strokeStyle="#e8542b"; ctx.setLineDash([4,3]);
+        ctx.strokeRect(-w/2-4,-l/2-4,w+8,l+8); ctx.setLineDash([]);
+      }
+      ctx.restore();
+      ctx.save(); ctx.font="bold 9px sans-serif";
+      ctx.fillStyle=isEdge?"#6d28d9":"#1d4ed8"; ctx.fillText(c.id, c.center.x+4, c.center.y-5);
+      if(isEdge){ ctx.fillStyle="#7c3aed"; ctx.fillText("EDGE", c.center.x+4, c.center.y+11); }
+      ctx.restore();
+    });
+
+    // dots
+    pts.forEach((p,i)=>{
+      const removable = dotMode && hoverDot===i;
+      ctx.save();
+      ctx.beginPath(); ctx.arc(p.x,p.y, removable?8:6, 0, Math.PI*2);
+      ctx.fillStyle = removable ? "#e0473a" : i===0 ? "#56b733" : "#e8542b";
+      ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle="#fff"; ctx.stroke();
+      if(removable){
+        ctx.strokeStyle="#fff"; ctx.lineWidth=1.6;
+        ctx.beginPath(); ctx.moveTo(p.x-3,p.y-3); ctx.lineTo(p.x+3,p.y+3);
+        ctx.moveTo(p.x+3,p.y-3); ctx.lineTo(p.x-3,p.y+3); ctx.stroke();
+      } else {
+        ctx.fillStyle="#1d1d1f"; ctx.font="bold 10px sans-serif"; ctx.fillText(i+1, p.x+9, p.y-8);
+      }
+      ctx.restore();
+    });
+  },[points,calipers,boxes,dotMode,hoverDot,pickActive,hoverCal,showBand,showCalipers,showBoxes,calipersAdded,calWindow]);
+
+  /* ---------------- Finish (no file produced) ---------------- */
+  function finish(){
+    setToast(true); setTimeout(()=>setToast(false),2600);
+  }
+
+  /* ---------------- Sub-step status (Module Setup) ---------------- */
+  const dotsState = dotsFinished ? "done" : (dotMode||hasPoints) ? "active" : "active";
+  const calState  = calipersAdded ? "done" : dotsFinished ? "active" : "";
+
+  /* ============================ Render ============================ */
+  return (
+    <div className="app">
+      {/* top breadcrumb */}
+      <div className="crumbbar">
+        <span className="home">⌂</span><span className="sep">›</span>
+        <span>Vaibhav Test</span><span className="sep">›</span>
+        <span>Recipe Management</span><span className="sep">›</span>
+        <span>OCR</span><span className="sep">›</span>
+        <span>Bead Inspection</span><span className="sep">›</span>
+        <span className="cur">Module Configuration</span>
+      </div>
+
+      <div className="main">
+        {/* ---------------- canvas ---------------- */}
+        <div className="canvas-wrap" ref={wrapRef}>
+          <div className="frame">
+            <canvas ref={canvasRef} width={W} height={H} className={dotMode?"dotmode":pickActive?"pickmode":""}
+              onMouseDown={onDown} onMouseMove={onMove} onMouseLeave={()=>{setHoverDot(null);setHoverCal(null);}}/>
+            <div className="imglabel">Input Image</div>
+            {dotMode && <div className="tracing-tag">● Tracing — click to add · hover a dot to remove</div>}
+          </div>
+
+          <div className="canvas-foot">
+            <span>Path length <b>{pathInfo.total.toFixed(0)} px</b></span>
+            <span>Dots <b>{points.length}</b></span>
+            <span>Calipers <b>{calipers.length}</b></span>
+            <span>Boxes <b>{boxes.length}</b></span>
+          </div>
+        </div>
+
+        {/* ---------------- module flow ---------------- */}
+        <div className="flow">
+          <div className="fcard master">
+            <div className="trash">🗑</div>
+            <div className="ftitle">Master Image as main input to the workflow</div>
+            <div className="ffile">WhatsApp Image 2026-06-18 at …</div>
+          </div>
+          <div className="fplus"><span>+</span></div>
+          <div className="fcard">
+            <div className="fhead"><ModIcon/><span className="fname">ODC_1</span></div>
+            <div className="fstatus">Configured module</div>
+          </div>
+          <div className="farrow">↓</div>
+          <div className="fcard">
+            <div className="fhead"><ModIcon/><span className="fname">OTC_1</span></div>
+            <div className="fstatus">Configured module</div>
+          </div>
+          <div className="farrow">↓</div>
+          <div className="fcard sel">
+            <div className="fhead"><ModIcon/><span className="fname">BI_1</span></div>
+            <div className="fstatus todo">Configure the selected module</div>
+          </div>
+        </div>
+
+        {/* ---------------- config pane ---------------- */}
+        <div className="pane">
+          <div className="pane-head">
+            <ModIcon/>
+            <h2>3. Bead Inspection</h2>
+            <span className="x">✕</span>
+          </div>
+          <div className="tabs">
+            <span className={"tab "+(step==="inputs"?"active":"")}>Module Inputs</span>
+            <span className="sep">›</span>
+            <span className={"tab "+(step==="setup"?"active":"")}>Module Setup</span>
+            <span className="sep">›</span>
+            <span className={"tab "+(step==="outputs"?"active":"")}>Module Outputs</span>
+          </div>
+
+          <div className="pane-body">
+
+            {/* ============ STEP 1 — INPUTS ============ */}
+            {step==="inputs" &&
+            <div className="block">
+              <h3>Base Search Area</h3>
+              <p className="sub">Select the region the Bead Inspection module will run on. The full input
+                image is used by default.</p>
+              <select value={baseArea} onChange={e=>setBaseArea(e.target.value)}>
+                <option>Input Image</option>
+                <option>ODC_1 — Output Crop</option>
+                <option>OTC_1 — Tracked Region</option>
+              </select>
+
+              <label className="lbl" style={{marginTop:20}}>Select Bead Class</label>
+              <select value={beadClass} onChange={e=>setBeadClass(e.target.value)}>
+                <option>Bead Class 1</option>
+                <option>Bead Class 2</option>
+              </select>
+
+              <label className="lbl" style={{marginTop:20}}>Select Model</label>
+              <select value={beadModel} onChange={e=>setBeadModel(e.target.value)}>
+                <option>Bead Model 1</option>
+                <option>Bead Model 2</option>
+              </select>
+            </div>}
+
+            {/* ============ STEP 2 — SETUP ============ */}
+            {step==="setup" && <>
+              {/* --- Dots --- */}
+              <div className="block">
+                <div className="stephdr">
+                  <span className={"stepnum "+dotsState}>{dotsFinished?"✓":"1"}</span>
+                  <h3 style={{margin:0}}>Trace Dots</h3>
+                </div>
+                <p className="sub">Drop ordered points along the red bead to define the inspection path.
+                  In tracing mode: click to add a dot, hover a dot to remove it, then Finish.</p>
+
+                {!dotMode && !dotsFinished &&
+                  <button className="btn cta" onClick={()=>{setDotMode(true);}}>＋ Add Dots</button>}
+
+                {dotMode && <div className="dotctl">
+                  <div className="dotctl-row">
+                    <span className="pill"><b>{points.length}</b> dot{points.length!==1?"s":""}</span>
+                    <button className="btn small" style={{marginLeft:"auto"}} onClick={undo} disabled={!canUndo}>↶ Undo</button>
+                    <button className="btn small" onClick={reset} disabled={!points.length}>↺ Reset</button>
+                  </div>
+                  <button className="btn finish" disabled={!hasPoints}
+                    onClick={()=>{setDotMode(false); setDotsFinished(true); setHoverDot(null);}}>✓ Finish</button>
+                </div>}
+
+                {dotsFinished && !dotMode &&
+                  <div className="pills">
+                    <span className="pill"><b>{points.length}</b> dots placed</span>
+                    <span className="pill"><b>{pathInfo.total.toFixed(0)}</b> px path</span>
+                    <button className="btn small" style={{marginLeft:"auto"}}
+                      onClick={()=>setDotMode(true)}>✎ Edit Dots</button>
+                  </div>}
+              </div>
+
+              {/* --- Calipers & Boxes --- */}
+              <div className={"block "+(dotsFinished?"":"locked")}>
+                <div className="stephdr">
+                  <span className={"stepnum "+calState}>{calipersAdded?"✓":"2"}</span>
+                  <h3 style={{margin:0}}>Calipers &amp; Boxes</h3>
+                </div>
+                <p className="sub">Calipers are auto-generated from your dots and grouped into boxes.
+                  Tune the numbers, then View Changes to preview on the canvas.</p>
+
+                {!calipersAdded &&
+                  <button className="btn cta" disabled={!hasPoints} onClick={addCalipers}>＋ Add Caliper</button>}
+
+                {calipersAdded && <>
+                  <div className="grid2">
+                    <NumFld label="Caliper height" value={draft.calH} set={v=>setD("calH",Math.max(10,Math.round(v)))} min={10} max={200} unit="px"/>
+                    <div className="fld">
+                      <span>Box size</span>
+                      <select value={draft.boxSize} onChange={e=>setD("boxSize",parseInt(e.target.value))}>
+                        {BOX_SIZES.map(s=><option key={s} value={s}>{s} px</option>)}
+                      </select>
+                    </div>
+                    <NumFld label="Caliper width (window)" value={calWindow} set={v=>setCalWindow(Math.max(1,v))} min={1} max={120} unit="px"/>
+                  </div>
+                  <p className="note">If the bead is not fully inside the caliper width, the result is <b>NG</b>.</p>
+
+                  {dirty
+                    ? <div className="dirty">● Unsaved changes — click View Changes to apply</div>
+                    : null}
+                  <button className="btn outline small" style={{width:"100%",marginTop:12}}
+                    onClick={viewChanges} disabled={!dirty}>↻ View Changes</button>
+                </>}
+              </div>
+
+              {/* --- Datum alignment --- */}
+              <div className={"block "+(calipersAdded?"":"locked")}>
+                <div className="toggle-row" style={{margin:0}}>
+                  <div className="t-lbl"><b>Align with Datum Line</b></div>
+                  <Switch checked={alignDatum} onChange={setAlignDatum}/>
+                </div>
+              </div>
+
+              {/* --- Ground Truth Values --- */}
+              <div className={"block "+(calipersAdded?"":"locked")}>
+                <h3>Ground Truth Values</h3>
+
+                <label className="lbl">Width</label>
+                <div className="gt-row">
+                  <select className="gt-op" value={gtOp} onChange={e=>setGtOp(e.target.value)}>
+                    <option value="lt">&lt;</option>
+                    <option value="gt">&gt;</option>
+                    <option value="between">between</option>
+                  </select>
+                  <input className="num-inline" type="number" min={1} max={200} value={gtVal}
+                    onChange={e=>{const v=parseInt(e.target.value); setGtVal(isNaN(v)?1:Math.max(1,v));}}/>
+                  {gtOp==="between" && <>
+                    <span className="gt-and">and</span>
+                    <input className="num-inline" type="number" min={1} max={200} value={gtHi}
+                      onChange={e=>{const v=parseInt(e.target.value); setGtHi(isNaN(v)?1:Math.max(1,v));}}/>
+                  </>}
+                  <span className="gt-u">px</span>
+                </div>
+
+                <label className="lbl" style={{marginTop:18}}>Minimum Gap (in calipers)</label>
+                <input className="num-inline" type="number" min={1} max={20} value={minGap}
+                  onChange={e=>{const v=parseInt(e.target.value); setMinGap(isNaN(v)?1:Math.max(1,v));}}/>
+                <p className="note">A gap equal to or greater than this value will lead to an <b>NG</b>.
+                  The caliper height is one unit of caliper.</p>
+              </div>
+
+              {/* --- Display layers --- */}
+              <div className={"block "+(calipersAdded?"":"locked")}>
+                <h3>Display Layers</h3>
+                <p className="sub">Toggle overlays on the canvas to declutter the view while you configure.</p>
+                <div className="toggle-row">
+                  <div className="t-lbl"><b><span className="dotsw" style={{background:"#2f6fed"}}></span>Calipers</b></div>
+                  <Switch checked={showCalipers} onChange={setShowCalipers}/>
+                </div>
+                <div className="toggle-row">
+                  <div className="t-lbl"><b><span className="dotsw" style={{background:"#e0473a"}}></span>Boxes</b></div>
+                  <Switch checked={showBoxes} onChange={setShowBoxes}/>
+                </div>
+                <div className="toggle-row">
+                  <div className="t-lbl"><b><span className="dotsw" style={{background:"rgba(86,183,51,.7)"}}></span>Tolerance band</b></div>
+                  <Switch checked={showBand} onChange={setShowBand}/>
+                </div>
+              </div>
+            </>}
+
+            {/* ============ STEP 3 — OUTPUTS ============ */}
+            {step==="outputs" &&
+            <div className="block">
+              <p className="sub" style={{marginBottom:18}}>Select the trackers, counts and other info below
+                which should be passed to the next module for further processing:</p>
+              <div className="checkrow">
+                <input type="checkbox" checked={outResult} onChange={e=>setOutResult(e.target.checked)}/>
+                <div><div className="cmain">Result</div></div>
+              </div>
+              <div className="checkrow">
+                <input type="checkbox" checked={outIncorrect} onChange={e=>setOutIncorrect(e.target.checked)}/>
+                <div><div className="cmain">Number of Incorrect Calipers</div></div>
+              </div>
+            </div>}
+
+          </div>
+
+          {/* ---------------- footer ---------------- */}
+          <div className="pane-foot">
+            {step==="inputs" && <>
+              <button className="btn outline">Exit</button>
+              <button className="btn solid" onClick={()=>setStep("setup")}>Next</button>
+            </>}
+            {step==="setup" && <>
+              <button className="btn outline" onClick={()=>setStep("inputs")}>Back</button>
+              <button className="btn solid" disabled={!dotsFinished} onClick={()=>setStep("outputs")}>Next</button>
+            </>}
+            {step==="outputs" && <>
+              <button className="btn outline" onClick={()=>setStep("setup")}>Back</button>
+              <button className="btn solid" onClick={finish}>Finish</button>
+            </>}
+          </div>
+        </div>
+      </div>
+
+      {/* ---------------- bottom app bar ---------------- */}
+      <div className="appbar">
+        <div className="xbtn">✕</div>
+        <div className="pager">
+          <div className="pdots">
+            <span className="pdot on"></span><span className="pdot"></span>
+            <span className="pdot"></span><span className="pdot"></span>
+          </div>
+          <span><b>1</b> of 4</span>
+          <span>Inspection Workflow ⌄</span>
+        </div>
+        <div className="barix"><span>◉</span><span>⤢</span><span>1:1</span><span>▢</span><span>◇</span></div>
+      </div>
+
+      {toast && <div className="toast">✓ Bead Inspection module configured</div>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+<script>
+  (function(){
+    var src = document.getElementById("app-source").textContent;
+    try {
+      var code = Babel.transform(src, {presets:[["react",{runtime:"classic"}]]}).code;
+      new Function(code)();
+    } catch (e) {
+      document.getElementById("root").innerHTML =
+        '<pre style="color:#b00;padding:20px;white-space:pre-wrap">Failed to start: '+
+        (e && e.message ? e.message : e) +'</pre>';
+      console.error(e);
+    }
+  })();
+</script>
+</body>
+</html>
