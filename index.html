@@ -138,9 +138,10 @@
   .dirty{color:var(--primary);font-size:12px;font-weight:600;margin:10px 0 0;display:flex;align-items:center;gap:6px}
   .hdr-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
   .num-inline{width:96px;background:var(--field);border:1px solid var(--field-line);color:var(--ink);padding:9px 10px;border-radius:8px;font-size:14px;text-align:left;font-variant-numeric:tabular-nums}
+  .gt-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px}
+  .gt-name{font-weight:600;font-size:13px;color:var(--ink);flex:0 0 auto}
   .gt-row{display:flex;align-items:center;gap:8px;margin-top:4px}
-  .gt-row .gt-op{width:120px;flex:0 0 auto}
-  .gt-row .num-inline{flex:1;width:auto}
+  .gt-op{width:104px;flex:0 0 auto}
   .gt-and{color:var(--muted);font-size:13px;flex:0 0 auto}
   .gt-u{color:var(--faint);font-size:12px;flex:0 0 auto}
   .nest{margin:2px 0 4px 12px;padding-left:12px;border-left:2px solid #e7d8fb}
@@ -715,6 +716,9 @@ function App(){
                 <div className="stephdr">
                   <span className={"stepnum "+dotsState}>{dotsFinished?"✓":"1"}</span>
                   <h3 style={{margin:0}}>Trace Dots</h3>
+                  {dotsFinished && !dotMode &&
+                    <button className="btn small" style={{marginLeft:"auto"}}
+                      onClick={()=>setDotMode(true)}>✎ Edit Dots</button>}
                 </div>
                 <p className="sub">Drop ordered points along the bead streak.
                   In tracing mode: click to add a dot, hover a dot to remove it, then Finish.</p>
@@ -731,14 +735,6 @@ function App(){
                   <button className="btn finish" disabled={!hasPoints}
                     onClick={()=>{setDotMode(false); setDotsFinished(true); setHoverDot(null);}}>✓ Finish</button>
                 </div>}
-
-                {dotsFinished && !dotMode &&
-                  <div className="pills">
-                    <span className="pill"><b>{points.length}</b> dots placed</span>
-                    <span className="pill"><b>{pathInfo.total.toFixed(0)}</b> px path</span>
-                    <button className="btn small" style={{marginLeft:"auto"}}
-                      onClick={()=>setDotMode(true)}>✎ Edit Dots</button>
-                  </div>}
               </div>
 
               {/* --- Calipers & Boxes --- */}
@@ -762,9 +758,7 @@ function App(){
                         {BOX_SIZES.map(s=><option key={s} value={s}>{s} px</option>)}
                       </select>
                     </div>
-                    <NumFld label="Caliper width (window)" value={calWindow} set={v=>setCalWindow(Math.max(1,v))} min={1} max={120} unit="px"/>
                   </div>
-                  <p className="note">If the bead is not fully inside the caliper width, the result is <b>NG</b>.</p>
 
                   {dirty
                     ? <div className="dirty">● Unsaved changes — click View Changes to apply</div>
@@ -780,32 +774,43 @@ function App(){
                   <div className="t-lbl"><b>Align with Datum Line</b></div>
                   <Switch checked={alignDatum} onChange={setAlignDatum}/>
                 </div>
+                <p className="note" style={{marginTop:8}}>This will align the Bead Streak with the Datum setup in OTC module.</p>
               </div>
 
               {/* --- Ground Truth Values --- */}
               <div className={"block "+(calipersAdded?"":"locked")}>
                 <h3>Ground Truth Values</h3>
 
-                <label className="lbl">Bead Width</label>
-                <div className="gt-row">
+                <div className="gt-line" style={{marginTop:22}}>
+                  <label className="gt-name">Bead Width</label>
                   <select className="gt-op" value={gtOp} onChange={e=>setGtOp(e.target.value)}>
                     <option value="lt">&lt;</option>
                     <option value="gt">&gt;</option>
                     <option value="between">between</option>
                   </select>
-                  <input className="num-inline" type="number" min={1} max={200} value={gtVal}
+                  <input className="num-inline" style={{flex:1,minWidth:60,width:"auto"}} type="number" min={1} max={200} value={gtVal}
                     onChange={e=>{const v=parseInt(e.target.value); setGtVal(isNaN(v)?1:Math.max(1,v));}}/>
                   {gtOp==="between" && <>
                     <span className="gt-and">and</span>
-                    <input className="num-inline" type="number" min={1} max={200} value={gtHi}
+                    <input className="num-inline" style={{flex:1,minWidth:60,width:"auto"}} type="number" min={1} max={200} value={gtHi}
                       onChange={e=>{const v=parseInt(e.target.value); setGtHi(isNaN(v)?1:Math.max(1,v));}}/>
                   </>}
                   <span className="gt-u">px</span>
                 </div>
 
-                <label className="lbl" style={{marginTop:18}}>Minimum Bead Gap (in calipers)</label>
-                <input className="num-inline" type="number" min={1} max={20} value={minGap}
-                  onChange={e=>{const v=parseInt(e.target.value); setMinGap(isNaN(v)?1:Math.max(1,v));}}/>
+                <label className="lbl" style={{marginTop:20}}>Bead Position Range (Caliper Width)</label>
+                <div className="gt-line">
+                  <input className="num-inline" type="number" min={1} max={120} value={calWindow}
+                    onChange={e=>{const v=parseInt(e.target.value); setCalWindow(isNaN(v)?1:Math.max(1,v));}}/>
+                  <span className="gt-u">px</span>
+                </div>
+                <p className="note">If the bead is not fully inside the caliper width, the result is <b>NG</b>.</p>
+
+                <div className="gt-line" style={{marginTop:20}}>
+                  <label className="gt-name" style={{flex:1}}>Minimum Bead Gap (in calipers)</label>
+                  <input className="num-inline" type="number" min={1} max={20} value={minGap}
+                    onChange={e=>{const v=parseInt(e.target.value); setMinGap(isNaN(v)?1:Math.max(1,v));}}/>
+                </div>
                 <p className="note">A gap equal to or greater than this value will lead to an <b>NG</b>.
                   The caliper height is one unit of caliper.</p>
               </div>
